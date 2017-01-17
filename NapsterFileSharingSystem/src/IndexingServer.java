@@ -19,7 +19,7 @@ public class IndexingServer {
 			}
 	}
 
-	static class IndexServer extends Thread {
+	private static class IndexServer extends Thread {
 		int peerId;
 		Socket clientSocket;
 		
