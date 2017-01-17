@@ -29,8 +29,8 @@ public class Peer {
 				ObjectOutputStream serveroutput=new ObjectOutputStream(clientsocket.getOutputStream());
 				serveroutput.flush();
 				ObjectInputStream serverinput=new ObjectInputStream(clientsocket.getInputStream());
-				Response res=(Response)serverinput.readObject();
-				System.out.println((String)res.getResponseInfo());
+				Communicator res=(Communicator)serverinput.readObject();
+				System.out.println((String)res.getCommunicatorInfo());
 				
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
