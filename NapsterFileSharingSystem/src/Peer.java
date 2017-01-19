@@ -21,6 +21,7 @@ class PeerClient extends Thread {
 	BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
 	ObjectOutputStream serveroutput=null;
 	ObjectInputStream serverinput=null;
+	int choice;
 	public void run() {
 
 		connection();
@@ -30,7 +31,44 @@ class PeerClient extends Thread {
 			System.out.println("2. Lookup Files with the server");
 			System.out.println("3. Unregister Files with the server");
 			System.out.println("4. Exit");
+			System.out.print("Enter Your Choice: ");
+			try {
+				choice=Integer.parseInt(input.readLine());
+			} catch (NumberFormatException e) {
+				// TODO Auto-generated catch block
+				System.out.println("Wrong Choice!!Enter valid choice");
+				continue;
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}	
 			
+			switch(choice)
+			{
+				case 1:
+					registerPeerFiles();
+					break;
+				case 2:
+					break;
+				case 3:
+					break;
+				case 4:
+					break;
+				default:
+					break;
+			}
+		}
+	}
+	
+	private void registerPeerFiles()
+	{
+		String path=null;
+		System.out.println("Enter the path of directory/file that you want to share with others peer:");
+		try {
+			path=input.readLine();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			System.out.println("Wrong path! Enter valid path");
 		}
 	}
 
