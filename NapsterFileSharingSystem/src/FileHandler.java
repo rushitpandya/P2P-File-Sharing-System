@@ -24,8 +24,8 @@ public class FileHandler {
 	 * @param path	Path whose files are to be returned
 	 * @return		Filename of all the files contained in the given path
 	 */
-	public static ArrayList<String> getFiles(String path) {
-		ArrayList<String> filesArrayList = new ArrayList<String>();
+	public static ArrayList<FileInfo> getFiles(String path) {
+		ArrayList<FileInfo> filesArrayList = new ArrayList<FileInfo>();
 		File folder = new File(path);
 		if (folder.isDirectory()) {
 			File[] filesList = folder.listFiles();
@@ -34,17 +34,30 @@ public class FileHandler {
 			if (filesList != null) {
 				for (int i = 0; i < filesList.length; i++) {
 					if (filesList[i].isFile()) {
-						//String fileLocation = filesList[i].getParent();
-						String fileABPath = filesList[i].getAbsolutePath();
-						if(!fileABPath.endsWith("~")) {
-							filesArrayList.add(fileABPath);
+						String fileLocation = filesList[i].getAbsolutePath().substring(0,(filesList[i].getAbsolutePath()).lastIndexOf(File.separator));
+						String fileName = filesList[i].getName();
+						if(!fileLocation.endsWith("~")) {
+							FileInfo fi=new FileInfo();
+							fi.setFileName(fileName);
+							fi.setFileLocation(fileLocation);
+							filesArrayList.add(fi);
 						}	
+					}
+					else{
+						 ArrayList<FileInfo> afi = getFiles(filesList[i].getPath());
+						 for(FileInfo f : afi){
+							 filesArrayList.add(f);
+						 }
 					}
 				}
 			}
 		} else if (folder.isFile()) {
-			filesArrayList.add(folder.getAbsolutePath());
-			//files.add(path.substring(path.lastIndexOf("/") + 1, path.length()));
+			String fileLocation = folder.getAbsolutePath().substring(0,(folder.getAbsolutePath()).lastIndexOf(File.separator));
+			String fileName = folder.getName();
+			FileInfo fi=new FileInfo();
+			fi.setFileName(fileName);
+			fi.setFileLocation(fileLocation);
+			filesArrayList.add(fi);
 		}
 		
 		return filesArrayList;
