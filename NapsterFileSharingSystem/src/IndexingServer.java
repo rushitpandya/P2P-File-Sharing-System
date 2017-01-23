@@ -74,7 +74,7 @@ public class IndexingServer {
 							peerFileLookup();
 							break;
 						case "UNREGISTER":
-							peerFileLookup();
+							peerUnregister();
 							break;	
 						default:
 							break;
@@ -93,13 +93,7 @@ public class IndexingServer {
 			int flag=0;
 			String dirCheck=null;
 			try {
-					//ObjectOutputStream serveroutput=new ObjectOutputStream(clientSocket.getOutputStream());
-					//serveroutput.flush();
-					//ObjectInputStream serverinput=new ObjectInputStream(clientSocket.getInputStream());
 					Communicator res=new Communicator();
-					/*res.setCommunicatorInfo("Welcome to the P2P File Sharing System!! Please below options of your choice");
-					serveroutput.writeObject(res);
-					serveroutput.flush();*/
 					ipAddress=clientSocket.getInetAddress().getHostAddress();
 					res=(Communicator)serverinput.readObject();
 					System.out.println("Info :"+res.getCommunicatorType());
@@ -239,6 +233,14 @@ public class IndexingServer {
 			
 		}
 			
+		public void peerUnregister()
+		{
+			if(ipAddress != null)
+			{
+				
+			}
+		}
+		
 	}
 	
 	
