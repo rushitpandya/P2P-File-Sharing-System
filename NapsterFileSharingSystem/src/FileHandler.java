@@ -15,8 +15,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class FileHandler {
 	
-	private static final String downloadLocation = "downloads/";
-	private static final String replicaLocation = "replica/";
+	public static final String downloadLocation = "downloads/";
+	public static final String replicaLocation = "replica/";
 	//private static final int BUFFER_SIZE = 1024 * 64; // 64 KiloBytes
 	
 	/***
