@@ -73,6 +73,9 @@ public class IndexingServer {
 						case "LOOKUPFILE":
 							peerFileLookup();
 							break;
+						case "LOOKUPPRINTFILE":
+							peerFileLookupPrint();
+							break;
 						case "UNREGISTER":
 							peerUnregister();
 							break;	
@@ -224,6 +227,57 @@ public class IndexingServer {
 				} 
 			}
 			res.setCommunicatorType("LookupMap");
+			res.setCommunicatorInfo(lookMap);
+			serveroutput.writeObject(res);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
+		
+		private void peerFileLookupPrint()
+		{
+			Communicator res;
+			String lookupFileName=null;
+			ArrayList<PeerInfo> alf=new ArrayList<PeerInfo>();
+			HashMap<PeerInfo, ArrayList<FileInfo>> lookMap=new HashMap<PeerInfo,ArrayList<FileInfo>>();
+			int flag=0;
+		try {
+			res = (Communicator)serverinput.readObject();			
+			if(res.getCommunicatorType().equals("lookupPrintFileName"))
+			{
+				lookupFileName=res.getCommunicatorInfo().toString();
+			}
+			
+			for (int pi : fileList.keySet()) {
+				ArrayList<FileInfo> fi=fileList.get(pi);
+				ArrayList<FileInfo> resArl=new ArrayList<FileInfo>();
+				for(FileInfo fInfo : fi)
+				{
+					if(fInfo.getFileName().equals(lookupFileName))
+					{
+						resArl.add(fInfo);
+						flag=1;
+					}
+				} 
+				if(flag==1)
+				{
+					PeerInfo peer=peerList.get(pi);
+					lookMap.put(peer, resArl);
+				}
+			}
+			
+			System.out.println("------------------Lookup HashMap--------------------------");
+			for (PeerInfo peerinfo : lookMap.keySet()) {
+				ArrayList<FileInfo> fi=lookMap.get(peerinfo);
+				System.out.println("PeerId: #"+peerinfo.getPeerId()+" with IP "+peerinfo.getIp());
+				for(FileInfo fInfo : fi)
+				{
+					System.out.println("File Name : "+fInfo.getFileName()+" File Location: "+fInfo.getFileLocation());
+				} 
+			}
+			res.setCommunicatorType("LookupPrintMap");
 			res.setCommunicatorInfo(lookMap);
 			serveroutput.writeObject(res);
 			} catch (Exception e) {
