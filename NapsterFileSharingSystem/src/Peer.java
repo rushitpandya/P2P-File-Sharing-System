@@ -109,10 +109,12 @@ class PeerClient extends Thread {
 		connection();
 		while(true)
 		{
-			System.out.println("\n\n1. Register Files with the server");
+			System.out.println("\nWhat do you want to do?");
+			System.out.println("1. Register Files with the server");
 			System.out.println("2. Lookup Files with the server");
 			System.out.println("3. Unregister Files with the server");
-			System.out.println("4. Exit");
+			System.out.println("4. Lookup and Print the file content");
+			System.out.println("5. Exit\n");
 			System.out.print("Enter Your Choice: ");
 			try {
 				choice=Integer.parseInt(input.readLine());
@@ -137,6 +139,9 @@ class PeerClient extends Thread {
 					unregisterPeerFiles();
 					break;
 				case 4:
+					lookupPrintFile();
+					break;
+				case 5:
 					break;
 				default:
 					break;
@@ -166,12 +171,26 @@ class PeerClient extends Thread {
 	{
 		BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
 		System.out.println("Are you sure want to unregister all files that you have share?Y/N");
+		
 		try {
 			String toUnRegister=input.readLine();
-			Communicator comm=new Communicator();
-			comm.setCommunicatorType("UNREGISTER");
-			comm.setCommunicatorInfo(toUnRegister);
-			serveroutput.writeObject(comm);
+			if(toUnRegister.equalsIgnoreCase("Y"))
+			{
+				Communicator comm=new Communicator();
+				comm.setCommunicatorType("UNREGISTER");
+				comm.setCommunicatorInfo(toUnRegister);
+				serveroutput.writeObject(comm);
+				
+				comm=(Communicator)serverinput.readObject();
+				if(comm.getCommunicatorType().equals("UnregisterSuccessfull"))
+				{
+					System.out.println(comm.getCommunicatorInfo().toString());
+				}
+				if(comm.getCommunicatorType().equals("NotShared"))
+				{
+					System.out.println(comm.getCommunicatorInfo().toString());
+				}
+			}
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -260,34 +279,151 @@ class PeerClient extends Thread {
 				lookMap=(HashMap<PeerInfo, ArrayList<FileInfo>>)comm.getCommunicatorInfo();
 			}
 			
-			System.out.println("Given File is found on following Peers: ");
-			System.out.println("Index\t|PeerId\t|FileName\t\t|FileLocation");
-			for (PeerInfo peerinfo : lookMap.keySet()) {
-				ArrayList<FileInfo> fi=lookMap.get(peerinfo);
-				for(FileInfo fInfo : fi)
-				{
-					indexCount++;
-					System.out.println(indexCount+"\t|"+peerinfo.getPeerId()+"\t|"+fInfo.getFileName()+"\t\t|"+fInfo.getFileLocation());
-					DownloadInfo di=new DownloadInfo();
-					di.setPeerInfo(peerinfo);
-					di.setFileInfo(fInfo);
-					if(di==null)
-						System.out.println("di is null...");
-					indexMap.put(indexCount,di);
-				} 
-			}
 			
-			System.out.println("Enter the index number from above table to download respective file:");
-			int indexNumber=Integer.parseInt(input.readLine());
-			DownloadInfo downloadObject=indexMap.get(indexNumber);
-			peerServerConnection(downloadObject);
+			if(!lookMap.isEmpty())
+			{
+				System.out.println("Given File is found on following Peers: ");
+				System.out.println("Index\t|PeerId\t|FileName\t\t|FileLocation");
+				for (PeerInfo peerinfo : lookMap.keySet()) {
+					ArrayList<FileInfo> fi=lookMap.get(peerinfo);
+					for(FileInfo fInfo : fi)
+					{
+						indexCount++;
+						System.out.println(indexCount+"\t|"+peerinfo.getPeerId()+"\t|"+fInfo.getFileName()+"\t\t|"+fInfo.getFileLocation());
+						DownloadInfo di=new DownloadInfo();
+						di.setPeerInfo(peerinfo);
+						di.setFileInfo(fInfo);
+						if(di==null)
+							System.out.println("di is null...");
+						indexMap.put(indexCount,di);
+					} 
+				}
+				
+				System.out.println("Enter the index number from above table to download respective file:");
+				int indexNumber=Integer.parseInt(input.readLine());
+				DownloadInfo downloadObject=indexMap.get(indexNumber);
+				peerServerConnection(downloadObject);
+			}
+			else{
+				System.out.println("Sorry file not found on any peer.");
+			}
 		}	
 		catch(Exception e)
 		{
 			e.printStackTrace();
 		}
 	}
+	private void lookupPrintFile()
+	{
+		Communicator comm=new Communicator();
+		FileHandler fh=new FileHandler();
+		HashMap<PeerInfo, ArrayList<FileInfo>> lookMap=null;
+		HashMap<Integer, DownloadInfo> indexMap=new HashMap<Integer,DownloadInfo>();
+		int indexCount=0;
+		try {
+			comm.setCommunicatorType("LOOKUPPRINTFILE");
+			serveroutput.writeObject(comm);
+			
+			comm=(Communicator)serverinput.readObject();
+			System.out.println("Please Only Enter .txt file for Printing...!!!");
+			System.out.println("Enter the file name for lookup and Print it:");
+			String lookupFileName=input.readLine();
+			
+			if(lookupFileName.endsWith(".txt")){
+				comm.setCommunicatorType("lookupPrintFileName");
+				comm.setCommunicatorInfo(lookupFileName);
+				serveroutput.writeObject(comm);
+				serveroutput.flush();
+				comm=(Communicator)serverinput.readObject();
+				
+				if(comm.getCommunicatorType().equals("LookupPrintMap"))
+				{
+					lookMap=(HashMap<PeerInfo, ArrayList<FileInfo>>)comm.getCommunicatorInfo();
+				}
+				
+				
+				if(!lookMap.isEmpty())
+				{
+					System.out.println("Given File is found on following Peers: ");
+					System.out.println("Index\t|PeerId\t|FileName\t\t|FileLocation");
+					for (PeerInfo peerinfo : lookMap.keySet()) {
+						ArrayList<FileInfo> fi=lookMap.get(peerinfo);
+						for(FileInfo fInfo : fi)
+						{
+							indexCount++;
+							System.out.println(indexCount+"\t|"+peerinfo.getPeerId()+"\t|"+fInfo.getFileName()+"\t\t|"+fInfo.getFileLocation());
+							DownloadInfo di=new DownloadInfo();
+							di.setPeerInfo(peerinfo);
+							di.setFileInfo(fInfo);
+							/*if(di==null)
+								System.out.println("di is null...");*/
+							indexMap.put(indexCount,di);
+						} 
+					}
+					
+					System.out.println("Enter the index number from above table to Print respective file Content:");
+					int indexNumber=Integer.parseInt(input.readLine());
+					DownloadInfo downloadObject=indexMap.get(indexNumber);
+					printFileContent(downloadObject);
+				}
+				else{
+					System.out.println("Sorry File Not Found...");
+				}
+			}		
+			else{
+				System.out.println("Sorry...!!Please Enter '.txt' file only for Printing...");
+			}
+			
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+	}
 	
+	private void printFileContent(DownloadInfo downloadObject)
+	{
+		PeerInfo downloadPeerInfo=downloadObject.getPeerInfo();
+		FileInfo downloadFileInfo=downloadObject.getFileInfo();
+		byte[] byteArray=new byte[1024*64];
+		InputStream in=null;
+		BufferedOutputStream bufOut;
+		try {
+			String serverIp1 = downloadPeerInfo.getIp();
+			Socket clientsocket1 = new Socket(serverIp1, Peer.PEER_LISTEN_PORT);
+			ObjectOutputStream serveroutput1 = new ObjectOutputStream(clientsocket1.getOutputStream());
+			serveroutput1.flush();
+			ObjectInputStream serverinput1 = new ObjectInputStream(clientsocket1.getInputStream());
+			Communicator res = new Communicator();
+			
+			System.out.println("Requesting a File for Printing............");
+			res.setCommunicatorType("DownloadRequest");
+			res.setCommunicatorInfo(downloadObject);
+			serveroutput1.writeObject(res);
+			serveroutput1.flush();
+			/*if(res.getCommunicatorType().equals("FileContent"))
+			{
+				res=(Communicator)serverinput1.readObject();
+			}*/	
+			System.out.println("Printing a File...........");
+			
+			in=clientsocket1.getInputStream();
+			bufOut=new BufferedOutputStream(new FileOutputStream(FileHandler.downloadLocation+downloadFileInfo.getFileName()));
+			int numByteRead;
+			in.read(byteArray);
+			System.out.println("\nFile Name:"+downloadFileInfo.getFileName());
+			System.out.println("Host Ip & Peer_ID:"+downloadPeerInfo.getIp()+" & "+downloadPeerInfo.getPeerId());
+			System.out.println("***********File Content**************\n");
+			System.out.write(byteArray);
+			
+			//System.out.println("getData");
+			
+			System.out.println("\nFile Printing Successfully!!!!!!");
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
 	private void peerServerConnection(DownloadInfo downloadObject)
 	{
 		PeerInfo downloadPeerInfo=downloadObject.getPeerInfo();

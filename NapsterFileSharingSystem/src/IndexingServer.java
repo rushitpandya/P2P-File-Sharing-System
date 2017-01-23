@@ -62,8 +62,10 @@ public class IndexingServer {
 					String choice=null;
 					res=(Communicator)serverinput.readObject();
 					choice = res.getCommunicatorType().toString();
-					serveroutput.writeObject(res);
-					
+					if(!choice.equals("UNREGISTER"))
+					{	
+						serveroutput.writeObject(res);
+					}
 					System.out.println("in while loop:-"+res.getCommunicatorType());
 					switch(choice){
 						case "REGISTERPEER":
@@ -73,8 +75,11 @@ public class IndexingServer {
 						case "LOOKUPFILE":
 							peerFileLookup();
 							break;
+						case "LOOKUPPRINTFILE":
+							peerFileLookupPrint();
+							break;
 						case "UNREGISTER":
-							peerUnregister();
+							peerUnregister(res);
 							break;	
 						default:
 							break;
@@ -232,12 +237,89 @@ public class IndexingServer {
 			}
 			
 		}
-			
-		public void peerUnregister()
+		
+		private void peerFileLookupPrint()
 		{
-			if(ipAddress != null)
+			Communicator res;
+			String lookupFileName=null;
+			ArrayList<PeerInfo> alf=new ArrayList<PeerInfo>();
+			HashMap<PeerInfo, ArrayList<FileInfo>> lookMap=new HashMap<PeerInfo,ArrayList<FileInfo>>();
+			int flag=0;
+		try {
+			res = (Communicator)serverinput.readObject();			
+			if(res.getCommunicatorType().equals("lookupPrintFileName"))
 			{
+				lookupFileName=res.getCommunicatorInfo().toString();
+			}
+			
+			for (int pi : fileList.keySet()) {
+				ArrayList<FileInfo> fi=fileList.get(pi);
+				ArrayList<FileInfo> resArl=new ArrayList<FileInfo>();
+				for(FileInfo fInfo : fi)
+				{
+					if(fInfo.getFileName().equals(lookupFileName))
+					{
+						resArl.add(fInfo);
+						flag=1;
+					}
+				} 
+				if(flag==1)
+				{
+					PeerInfo peer=peerList.get(pi);
+					lookMap.put(peer, resArl);
+				}
+			}
+			
+			System.out.println("------------------Lookup HashMap--------------------------");
+			for (PeerInfo peerinfo : lookMap.keySet()) {
+				ArrayList<FileInfo> fi=lookMap.get(peerinfo);
+				System.out.println("PeerId: #"+peerinfo.getPeerId()+" with IP "+peerinfo.getIp());
+				for(FileInfo fInfo : fi)
+				{
+					System.out.println("File Name : "+fInfo.getFileName()+" File Location: "+fInfo.getFileLocation());
+				} 
+			}
+			res.setCommunicatorType("LookupPrintMap");
+			res.setCommunicatorInfo(lookMap);
+			serveroutput.writeObject(res);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
+			
+		public void peerUnregister(Communicator res)
+		{
+			
+			try{
+				int isShared=1;
+				serveroutput.flush();
 				
+					for (int pi : peerList.keySet())
+					{
+						PeerInfo peerinfo=peerList.get(pi);
+						if(peerinfo.getIp().equals(ipAddress))
+						{
+							peerList.remove(pi);
+							fileList.remove(pi);
+							isShared=0;
+						}
+					}
+					if(isShared==0) {
+						res.setCommunicatorType("UnregisterSuccessfull");
+						res.setCommunicatorInfo((String)"Files unregistered successfully!!!\nPlease select options 1 if you want to share any files.");
+						serveroutput.writeObject(res);
+					}
+					else{
+						res.setCommunicatorType("NotShared");
+						res.setCommunicatorInfo((String)"Sorry you haven't shared any files! Select to option 1 to register/share any files");
+						serveroutput.writeObject(res);
+					}
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace();
 			}
 		}
 		
