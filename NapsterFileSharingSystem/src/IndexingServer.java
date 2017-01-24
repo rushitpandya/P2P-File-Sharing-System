@@ -3,6 +3,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -21,6 +22,8 @@ public class IndexingServer {
 			System.out.println("Waiting for new connection from peer!!!");
 			System.out.println();
 			try{
+				new Index2PeerFileSync().start();
+					
 				while(true)
 				{
 					new IndexServer(serverSocket.accept()).start();
@@ -29,6 +32,49 @@ public class IndexingServer {
 			finally{
 				serverSocket.close();
 			}
+	}
+	
+	private static class Index2PeerFileSync extends Thread {
+		
+		public void run()
+		{
+			while(true)
+			{	
+				
+				String syncIp=null,syncLocation=null;
+				Communicator res=new Communicator();
+				try{
+					Index2PeerFileSync.sleep(60000);
+					for(int pi : peerList.keySet()) {
+						PeerInfo peerinfo=peerList.get(pi);
+						syncIp=peerinfo.getIp();
+						syncLocation=peerinfo.getDirectory();
+						Socket clientsyncsocket = new Socket(syncIp, Peer.PEER_LISTEN_PORT);
+						ObjectOutputStream serversyncoutput = new ObjectOutputStream(clientsyncsocket.getOutputStream());
+						ObjectInputStream serversyncinput = new ObjectInputStream(clientsyncsocket.getInputStream());
+						res.setCommunicatorType("FileSync");
+						res.setCommunicatorInfo(peerinfo);
+						serversyncoutput.writeObject(res);
+						
+						res = (Communicator) serversyncinput.readObject();
+						ArrayList<FileInfo> afl=(ArrayList<FileInfo>)res.getCommunicatorInfo();
+						if(afl.isEmpty())
+						{
+							//peerList.remove(pi);
+							fileList.remove(pi);
+						}
+						else
+						{
+							fileList.put(pi, afl);
+						}
+					}
+				}
+				catch(Exception e)
+				{
+					e.printStackTrace();
+				}
+			}	
+		}	
 	}
 
 	private static class IndexServer extends Thread {
@@ -62,7 +108,7 @@ public class IndexingServer {
 					String choice=null;
 					res=(Communicator)serverinput.readObject();
 					choice = res.getCommunicatorType().toString();
-					if(!choice.equals("UNREGISTER"))
+					if(!choice.equals("UNREGISTER") || !choice.equals("CLOSE"))
 					{	
 						serveroutput.writeObject(res);
 					}
@@ -81,13 +127,21 @@ public class IndexingServer {
 						case "UNREGISTER":
 							peerUnregister(res);
 							break;	
+						case "CLOSE" :
+							peerClose(res);
+							break;
 						default:
 							break;
 					}
 					
 				}//end while(true)
 				
-			} catch (Exception e) {
+			}
+			catch(SocketException e)
+			{
+				System.out.println("Connection with IP: "+ipAddress+" terminated\n");
+			}
+			catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
@@ -145,7 +199,12 @@ public class IndexingServer {
 							break;
 					}
 					
-				} catch (Exception e) {
+				}
+				catch(SocketException e)
+				{
+					System.out.println("Connection with IP: "+ipAddress+" terminated\n");
+				}
+				catch (Exception e) {
 				// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -301,7 +360,7 @@ public class IndexingServer {
 						PeerInfo peerinfo=peerList.get(pi);
 						if(peerinfo.getIp().equals(ipAddress))
 						{
-							peerList.remove(pi);
+							//peerList.remove(pi);
 							fileList.remove(pi);
 							isShared=0;
 						}
@@ -316,6 +375,37 @@ public class IndexingServer {
 						res.setCommunicatorInfo((String)"Sorry you haven't shared any files! Select to option 1 to register/share any files");
 						serveroutput.writeObject(res);
 					}
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
+		
+		
+		public void peerClose(Communicator res)
+		{
+			
+			try{
+				int isShared=1;
+				serveroutput.flush();
+				
+					for (int pi : peerList.keySet())
+					{
+						PeerInfo peerinfo=peerList.get(pi);
+						if(peerinfo.getIp().equals(ipAddress))
+						{
+							peerList.remove(pi);
+							fileList.remove(pi);
+							isShared=0;
+						}
+					}
+					
+						res.setCommunicatorType("CloseSuccessfull");
+						res.setCommunicatorInfo((String)"Thankyou for Using Napster");
+						serveroutput.writeObject(res);
+					
+					
 			}
 			catch(Exception e)
 			{

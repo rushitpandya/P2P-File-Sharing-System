@@ -10,6 +10,7 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -27,7 +28,7 @@ public class Peer {
 			serverSocket =new ServerSocket(PEER_LISTEN_PORT);
 			System.out.println("Peer Client Started!!");
 			new PeerClient().start();
-		
+			
 			while(true)
 			{
 				 new PeerServer(serverSocket.accept()).start();
@@ -68,7 +69,7 @@ class PeerServer extends Thread {
 				
 				if(comm.getCommunicatorType().equals("DownloadRequest"))
 				{
-					System.out.println("Download request accepted");
+					//System.out.println("Download request accepted........");
 					downloadInfo=(DownloadInfo)comm.getCommunicatorInfo();
 					PeerInfo downloadPeerInfo=downloadInfo.getPeerInfo();
 					FileInfo downloadFileInfo=downloadInfo.getFileInfo();
@@ -81,10 +82,19 @@ class PeerServer extends Thread {
 					out = socket.getOutputStream();
 					out.write(filebytesArray, 0, filebytesArray.length);
 					out.flush();
-					//comm.setCommunicatorType("FileContent");
-					//comm.setCommunicatorInfo(filebytesArray);
-					//peerServerOutput.writeObject(comm);
-					System.out.println("finish sending");
+					//buf.close();
+					//out.close();
+					
+				//	System.out.println("finish sending");
+				}
+				else if (comm.getCommunicatorType().equals("FileSync"))
+				{
+					PeerInfo peerinfo=(PeerInfo)comm.getCommunicatorInfo();
+					FileHandler fh=new FileHandler();
+					ArrayList<FileInfo> afl=fh.getFiles(peerinfo.getDirectory());
+					comm.setCommunicatorType("UpdatedFiles");
+					comm.setCommunicatorInfo(afl);
+					peerServerOutput.writeObject(comm);
 				}
 			
 		}
@@ -99,6 +109,7 @@ class PeerServer extends Thread {
 
 class PeerClient extends Thread {
 
+	int connectionFlag=0;
 	String serverIp = null;
 	BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
 	ObjectOutputStream serveroutput=null;
@@ -106,61 +117,80 @@ class PeerClient extends Thread {
 	int choice;
 	public void run() {
 
-		connection();
-		while(true)
-		{
-			System.out.println("\nWhat do you want to do?");
-			System.out.println("1. Register Files with the server");
-			System.out.println("2. Lookup Files with the server");
-			System.out.println("3. Unregister Files with the server");
-			System.out.println("4. Lookup and Print the file content");
-			System.out.println("5. Exit\n");
-			System.out.print("Enter Your Choice: ");
-			try {
-				choice=Integer.parseInt(input.readLine());
-			} catch (NumberFormatException e) {
-				// TODO Auto-generated catch block
-				System.out.println("Wrong Choice!!Enter valid choice");
-				continue;
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}	
-			
-			switch(choice)
+		connection();	
+		while(connectionFlag==1) {	
+			connection();
+		}	
+			while(true)
 			{
-				case 1:
-					registerPeerFiles();
-					break;
-				case 2:
-					lookupFile();
-					break;
-				case 3:
-					unregisterPeerFiles();
-					break;
-				case 4:
-					lookupPrintFile();
-					break;
-				case 5:
-					break;
-				default:
-					break;
+				System.out.println("\nWhat do you want to do?");
+				System.out.println("1. Register Files with the server");
+				System.out.println("2. Lookup Files with the server");
+				System.out.println("3. Unregister Files with the server");
+				System.out.println("4. Lookup and Print the file content");
+				System.out.println("5. Exit\n");
+				System.out.print("Enter Your Choice: ");
+				try {
+					choice=Integer.parseInt(input.readLine());
+				} catch (NumberFormatException e) {
+					// TODO Auto-generated catch block
+					System.out.println("Wrong Choice!!Enter valid choice");
+					continue;
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}	
+				
+				switch(choice)
+				{
+					case 1:
+						registerPeerFiles();
+						break;
+					case 2:
+						lookupFile();
+						break;
+					case 3:
+						unregisterPeerFiles();
+						break;
+					case 4:
+						lookupPrintFile();
+						break;
+					case 5:
+						closePeerConnection();
+					
+						break;
+					default:
+						break;
+				}
 			}
-		}
+			
 	}
 	
 	private void connection() {
+		
 		try {
 			System.out.println("Enter the Indexing Server IP Address:");
 			serverIp = input.readLine();
+			while(serverIp.trim().length() == 0 || !IPValidator.validate(serverIp)) {
+				System.out.println("Invalid Server IP Address.");
+				System.out.println();
+				System.out.println("Enter Valid Indexing Server IP Address:");
+				serverIp = input.readLine();
+			}
 			Socket clientsocket = new Socket(serverIp, Peer.PEER_REQUEST_PORT);
 			serveroutput = new ObjectOutputStream(clientsocket.getOutputStream());
 			serveroutput.flush();
 			serverinput = new ObjectInputStream(clientsocket.getInputStream());
 			Communicator res = (Communicator) serverinput.readObject();
 			System.out.println((String) res.getCommunicatorInfo());// displaying welcome message from server!
-
-		} catch (Exception e) {
+			connectionFlag=0;
+		}
+		catch(ConnectException e)
+		{
+			System.out.println("Connection Timed Out: Unable to find server.\n");
+			connectionFlag=1;
+		}
+		catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -170,7 +200,7 @@ class PeerClient extends Thread {
 	private void unregisterPeerFiles()
 	{
 		BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
-		System.out.println("Are you sure want to unregister all files that you have share?Y/N");
+		System.out.println("Are you sure want to unregister all files that you have share?(Y/N)");
 		
 		try {
 			String toUnRegister=input.readLine();
@@ -197,6 +227,35 @@ class PeerClient extends Thread {
 		}
 		
 	}
+	private void closePeerConnection()
+	{
+		BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
+		
+		System.out.println("Note: This will remove all data from Indexing Server");
+		System.out.println("Are you sure want to terminate the connection?(Y/N)");
+		
+		try {
+			String toUnRegister=input.readLine();
+			if(toUnRegister.equalsIgnoreCase("Y"))
+			{
+				Communicator comm=new Communicator();
+				comm.setCommunicatorType("CLOSE");
+				comm.setCommunicatorInfo(toUnRegister);
+				serveroutput.writeObject(comm);
+				
+				comm=(Communicator)serverinput.readObject();
+				if(comm.getCommunicatorType().equals("CloseSuccessfull"))
+				{
+					System.out.println(comm.getCommunicatorInfo().toString());
+				}
+				System.exit(0);
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
 	
 	private void registerPeerFiles()
 	{
@@ -216,6 +275,13 @@ class PeerClient extends Thread {
 			System.out.println("Enter the path of directory/file that you want to share with others peer:");
 			path=input.readLine();
 			File fp=new File(path);
+			while(!fp.exists())
+			{
+				System.out.println("Invalid Path.");
+				System.out.println("Enter the valid path of directory/file that you want to share with others peer:");
+				path=input.readLine();
+				fp=new File(path);
+			}
 			if(fp.isFile())
 			{
 				fileCheck=fp.getAbsolutePath().substring(0,fp.getAbsolutePath().lastIndexOf(File.separator));
@@ -239,8 +305,9 @@ class PeerClient extends Thread {
 			
 			comm = (Communicator)serverinput.readObject();
 			if(comm.getCommunicatorType().equals("registrationSuccessfull")){
+				System.out.println("\n-------------------------------------------------");
 				System.out.println(comm.getCommunicatorInfo().toString());
-				System.out.println("------------------------------------------");
+				System.out.println("---------------------------------------------------");
 				
 				for(FileInfo fi : filesList){
 					System.out.println("File Name : "+fi.getFileName()+" File Location: "+fi.getFileLocation());
@@ -266,7 +333,7 @@ class PeerClient extends Thread {
 			
 			comm=(Communicator)serverinput.readObject();
 			
-			System.out.println("Enter the file name for lookup and download it:");
+			System.out.println("Enter the file name to lookup and download it:");
 			String lookupFileName=input.readLine();
 			comm.setCommunicatorType("lookupFileName");
 			comm.setCommunicatorInfo(lookupFileName);
@@ -279,11 +346,13 @@ class PeerClient extends Thread {
 				lookMap=(HashMap<PeerInfo, ArrayList<FileInfo>>)comm.getCommunicatorInfo();
 			}
 			
-			
+			System.out.println();
 			if(!lookMap.isEmpty())
 			{
-				System.out.println("Given File is found on following Peers: ");
+				System.out.println("Given File is found on following Peers \n");
+				System.out.println("------------------------------------------");
 				System.out.println("Index\t|PeerId\t|FileName\t\t|FileLocation");
+				System.out.println("------------------------------------------");
 				for (PeerInfo peerinfo : lookMap.keySet()) {
 					ArrayList<FileInfo> fi=lookMap.get(peerinfo);
 					for(FileInfo fInfo : fi)
@@ -299,10 +368,18 @@ class PeerClient extends Thread {
 					} 
 				}
 				
-				System.out.println("Enter the index number from above table to download respective file:");
-				int indexNumber=Integer.parseInt(input.readLine());
-				DownloadInfo downloadObject=indexMap.get(indexNumber);
-				peerServerConnection(downloadObject);
+				System.out.println("\nEnter the index number from above table to download respective file:");
+					String regex="[0-9]+";
+					String sindexNumber=null;
+					sindexNumber=input.readLine();
+					while(!sindexNumber.matches(regex))
+					{	
+						System.out.println("Please Enter Proper Index Number:");
+						sindexNumber=input.readLine();
+					}	
+					int indexNumber=Integer.parseInt(sindexNumber);				
+					DownloadInfo downloadObject=indexMap.get(indexNumber);
+					peerServerConnection(downloadObject);
 			}
 			else{
 				System.out.println("Sorry file not found on any peer.");
@@ -325,8 +402,8 @@ class PeerClient extends Thread {
 			serveroutput.writeObject(comm);
 			
 			comm=(Communicator)serverinput.readObject();
-			System.out.println("Please Only Enter .txt file for Printing...!!!");
-			System.out.println("Enter the file name for lookup and Print it:");
+			System.out.println("Note: Please Only Enter '.txt' file for Printing.\n");
+			System.out.println("Enter the File Name for Lookup and Print it:");
 			String lookupFileName=input.readLine();
 			
 			if(lookupFileName.endsWith(".txt")){
@@ -341,11 +418,13 @@ class PeerClient extends Thread {
 					lookMap=(HashMap<PeerInfo, ArrayList<FileInfo>>)comm.getCommunicatorInfo();
 				}
 				
-				
+				System.out.println();
 				if(!lookMap.isEmpty())
 				{
 					System.out.println("Given File is found on following Peers: ");
+					System.out.println("------------------------------------------");
 					System.out.println("Index\t|PeerId\t|FileName\t\t|FileLocation");
+					System.out.println("------------------------------------------");
 					for (PeerInfo peerinfo : lookMap.keySet()) {
 						ArrayList<FileInfo> fi=lookMap.get(peerinfo);
 						for(FileInfo fInfo : fi)
@@ -361,8 +440,17 @@ class PeerClient extends Thread {
 						} 
 					}
 					
-					System.out.println("Enter the index number from above table to Print respective file Content:");
-					int indexNumber=Integer.parseInt(input.readLine());
+					System.out.println("\nEnter the index number from above table to Print respective file Content:");
+					String regex="[0-9]+";
+					String sindexNumber=null;
+					sindexNumber=input.readLine();
+					while(!sindexNumber.matches(regex))
+					{	
+						System.out.println("Please Enter Proper Index Number:");
+						sindexNumber=input.readLine();
+					}	
+					
+					int indexNumber=Integer.parseInt(sindexNumber);
 					DownloadInfo downloadObject=indexMap.get(indexNumber);
 					printFileContent(downloadObject);
 				}
@@ -394,7 +482,7 @@ class PeerClient extends Thread {
 			ObjectInputStream serverinput1 = new ObjectInputStream(clientsocket1.getInputStream());
 			Communicator res = new Communicator();
 			
-			System.out.println("Requesting a File for Printing............");
+			System.out.println("\nRequesting a File for Printing............");
 			res.setCommunicatorType("DownloadRequest");
 			res.setCommunicatorInfo(downloadObject);
 			serveroutput1.writeObject(res);
@@ -411,12 +499,14 @@ class PeerClient extends Thread {
 			in.read(byteArray);
 			System.out.println("\nFile Name:"+downloadFileInfo.getFileName());
 			System.out.println("Host Ip & Peer_ID:"+downloadPeerInfo.getIp()+" & "+downloadPeerInfo.getPeerId());
-			System.out.println("***********File Content**************\n");
+			System.out.println("\n***********File Content**************\n");
+			System.out.println("-----------------------------------------");
 			System.out.write(byteArray);
-			
+			System.out.println();
+			System.out.println("-----------------------------------------");
 			//System.out.println("getData");
 			
-			System.out.println("\nFile Printing Successfully!!!!!!");
+			System.out.println("\nFile Printing Successfully Completed");
 			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -457,17 +547,22 @@ class PeerClient extends Thread {
 			
 			in=clientsocket1.getInputStream();
 			bufOut=new BufferedOutputStream(new FileOutputStream(FileHandler.downloadLocation+downloadFileInfo.getFileName()));
-			int numByteRead;
-			
-			/*while((numByteRead = in.read(byteArray,0,byteArray.length))>0)
+			int numByteRead=0;
+			int count=0;
+			while((numByteRead = in.read(byteArray))!=-1)
 			{
-				System.out.println("getData1");
+				count++;
+				System.out.println(count);
 				bufOut.write(byteArray,0,numByteRead);
-			}*/
-			numByteRead = in.read(byteArray);
-			bufOut.write(byteArray);
-			//System.out.println("getData");
+				bufOut.flush();
+			}
+			System.out.println("out of loop");
+			//numByteRead = in.read(byteArray);
+			//bufOut.write(byteArray);
+			bufOut.close();
+			in.close();
 			
+				
 			System.out.println("File Downloaded Successfully!!!!!!");
 			
 		} catch (Exception e) {
