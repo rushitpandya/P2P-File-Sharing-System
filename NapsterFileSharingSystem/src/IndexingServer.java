@@ -83,11 +83,15 @@ public class IndexingServer {
 		String ipAddress;
 		ObjectOutputStream serveroutput=null;
 		ObjectInputStream serverinput=null;
-		
+		LogHandler log;
 		public IndexServer(Socket clientSocket) throws IOException
 		{	
 			this.clientSocket=clientSocket;
+			ipAddress=clientSocket.getInetAddress().getHostAddress();
 			System.out.println("Connection Estaiblished with Peer having IP "
+			+clientSocket.getInetAddress());
+			log=new LogHandler("server");
+			log.write("Connection Estaiblished with Peer having IP "
 			+clientSocket.getInetAddress());
 		}
 		
@@ -103,19 +107,18 @@ public class IndexingServer {
 				res.setCommunicatorInfo("Welcome to the P2P File Sharing System!! Please choose from below options of your choice");
 				serveroutput.writeObject(res);
 				serveroutput.flush();
-			
+				
 				while(true){
 					String choice=null;
 					res=(Communicator)serverinput.readObject();
 					choice = res.getCommunicatorType().toString();
-					if(!choice.equals("UNREGISTER") || !choice.equals("CLOSE"))
+					if(!choice.equals("UNREGISTER") && !choice.equals("CLOSE"))
 					{	
 						serveroutput.writeObject(res);
 					}
 					System.out.println("in while loop:-"+res.getCommunicatorType());
 					switch(choice){
 						case "REGISTERPEER":
-							//System.out.println("in case: REGISTERPEER:");
 							peerConnection();
 							break;
 						case "LOOKUPFILE":
@@ -153,7 +156,7 @@ public class IndexingServer {
 			String dirCheck=null;
 			try {
 					Communicator res=new Communicator();
-					ipAddress=clientSocket.getInetAddress().getHostAddress();
+					log.write("Peer with IP: "+ipAddress+" connected.");
 					res=(Communicator)serverinput.readObject();
 					System.out.println("Info :"+res.getCommunicatorType());
 					if(res.getCommunicatorType().equals("Peercheck"))
@@ -203,6 +206,7 @@ public class IndexingServer {
 				catch(SocketException e)
 				{
 					System.out.println("Connection with IP: "+ipAddress+" terminated\n");
+					log.write("Connection with IP: "+ipAddress+" terminated");
 				}
 				catch (Exception e) {
 				// TODO Auto-generated catch block
@@ -213,6 +217,7 @@ public class IndexingServer {
 		
 		private void peerRegister(Communicator comm)
 		{
+			log.write("Register request from "+ipAddress);
 			Communicator res=new Communicator();
 			ArrayList<FileInfo> fileInfo=(ArrayList<FileInfo>)comm.getCommunicatorInfo();
 			//String peerInfo=peerId+"#"+clientSocket.getInetAddress().getHostAddress()+"#"+clientSocket.getPort();
@@ -236,6 +241,7 @@ public class IndexingServer {
 			}
 			res.setCommunicatorType("registrationSuccessfull");
 			res.setCommunicatorInfo("Peer registered with given files successfully...!!!");
+			log.write("Files registered succesfully.");
 			try {
 				serveroutput.writeObject(res);
 				serveroutput.flush();
@@ -258,6 +264,7 @@ public class IndexingServer {
 			if(res.getCommunicatorType().equals("lookupFileName"))
 			{
 				lookupFileName=res.getCommunicatorInfo().toString();
+				log.write("Lookup request for File: " +lookupFileName);
 			}
 			
 			for (int pi : fileList.keySet()) {
@@ -287,6 +294,11 @@ public class IndexingServer {
 					System.out.println("File Name : "+fInfo.getFileName()+" File Location: "+fInfo.getFileLocation());
 				} 
 			}
+			
+			if(lookMap.isEmpty())
+			{
+				log.write("File: "+lookupFileName+" Not Found.");
+			}
 			res.setCommunicatorType("LookupMap");
 			res.setCommunicatorInfo(lookMap);
 			serveroutput.writeObject(res);
@@ -309,6 +321,7 @@ public class IndexingServer {
 			if(res.getCommunicatorType().equals("lookupPrintFileName"))
 			{
 				lookupFileName=res.getCommunicatorInfo().toString();
+				log.write("Lookup request for File: " +lookupFileName);
 			}
 			
 			for (int pi : fileList.keySet()) {
@@ -340,6 +353,10 @@ public class IndexingServer {
 			}
 			res.setCommunicatorType("LookupPrintMap");
 			res.setCommunicatorInfo(lookMap);
+			if(lookMap.isEmpty())
+			{
+				log.write("File: "+lookupFileName+" Not Found.");
+			}
 			serveroutput.writeObject(res);
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
@@ -350,7 +367,7 @@ public class IndexingServer {
 			
 		public void peerUnregister(Communicator res)
 		{
-			
+			log.write("Unregister request from "+ipAddress);
 			try{
 				int isShared=1;
 				serveroutput.flush();
@@ -369,11 +386,13 @@ public class IndexingServer {
 						res.setCommunicatorType("UnregisterSuccessfull");
 						res.setCommunicatorInfo((String)"Files unregistered successfully!!!\nPlease select options 1 if you want to share any files.");
 						serveroutput.writeObject(res);
+						log.write("Files unregister successfully.");
 					}
 					else{
 						res.setCommunicatorType("NotShared");
 						res.setCommunicatorInfo((String)"Sorry you haven't shared any files! Select to option 1 to register/share any files");
 						serveroutput.writeObject(res);
+						log.write("No files found for unregistration");
 					}
 			}
 			catch(Exception e)
@@ -385,7 +404,7 @@ public class IndexingServer {
 		
 		public void peerClose(Communicator res)
 		{
-			
+			log.write("Peer closing request from "+ipAddress);
 			try{
 				int isShared=1;
 				serveroutput.flush();
@@ -401,11 +420,10 @@ public class IndexingServer {
 						}
 					}
 					
-						res.setCommunicatorType("CloseSuccessfull");
-						res.setCommunicatorInfo((String)"Thankyou for Using Napster");
-						serveroutput.writeObject(res);
-					
-					
+					res.setCommunicatorType("CloseSuccessfull");
+					res.setCommunicatorInfo((String)"Thankyou for Using Napster");
+					serveroutput.writeObject(res);
+					log.write("Peer closing request completed for "+ipAddress);
 			}
 			catch(Exception e)
 			{

@@ -46,22 +46,32 @@ public class Peer {
 	}
 }
 
+
 class PeerServer extends Thread {
 
+	
+	
 	Socket socket;
 	ObjectInputStream peerServerInput;
 	ObjectOutputStream peerServerOutput;
+	private LogHandler peerserverlog = new LogHandler("peer");
 	public PeerServer(Socket socket)
 	{
 		this.socket=socket;
 	}
 	
+	@Override
+	public void interrupt() {
+		peerserverlog.close();
+		super.interrupt();
+	}
+
 	
 	public void run() {
 		OutputStream out;
 		try{
-			DownloadInfo downloadInfo;
-			
+				DownloadInfo downloadInfo;
+				
 				peerServerOutput = new ObjectOutputStream(socket.getOutputStream());
 				peerServerOutput.flush();
 				peerServerInput=new ObjectInputStream(socket.getInputStream());
@@ -69,12 +79,16 @@ class PeerServer extends Thread {
 				
 				if(comm.getCommunicatorType().equals("DownloadRequest"))
 				{
+					String Ip=socket.getInetAddress().getHostAddress();
+					peerserverlog.write("File downloading request from "+socket.getInetAddress().getHostAddress()+" accepted and processing initiated .");
+					peerserverlog.write("Locating file requested by "+socket.getInetAddress().getHostAddress());
 					//System.out.println("Download request accepted........");
 					downloadInfo=(DownloadInfo)comm.getCommunicatorInfo();
 					PeerInfo downloadPeerInfo=downloadInfo.getPeerInfo();
 					FileInfo downloadFileInfo=downloadInfo.getFileInfo();
 					String fileName=downloadFileInfo.getFileName();
 					String fileLocation=downloadFileInfo.getFileLocation();
+					peerserverlog.write("Sending file "+fileName+"requested by "+Ip);
 					File file=new File(fileLocation+File.separator+fileName);
 					byte[] filebytesArray=new byte[(int)file.length()];
 					BufferedInputStream buf=new BufferedInputStream(new FileInputStream(file));
@@ -82,6 +96,7 @@ class PeerServer extends Thread {
 					out = socket.getOutputStream();
 					out.write(filebytesArray, 0, filebytesArray.length);
 					out.flush();
+					peerserverlog.write("File sent to the peer");
 					//buf.close();
 					//out.close();
 					
@@ -89,6 +104,8 @@ class PeerServer extends Thread {
 				}
 				else if (comm.getCommunicatorType().equals("FileSync"))
 				{
+					String Ip=socket.getInetAddress().getHostAddress();
+					peerserverlog.write("File Syncing request from"+Ip+" accepted and processing initiated.");
 					PeerInfo peerinfo=(PeerInfo)comm.getCommunicatorInfo();
 					FileHandler fh=new FileHandler();
 					ArrayList<FileInfo> afl=fh.getFiles(peerinfo.getDirectory());
@@ -549,16 +566,16 @@ class PeerClient extends Thread {
 			bufOut=new BufferedOutputStream(new FileOutputStream(FileHandler.downloadLocation+downloadFileInfo.getFileName()));
 			int numByteRead=0;
 			int count=0;
-			while((numByteRead = in.read(byteArray))!=-1)
+			/*while((numByteRead = in.read(byteArray))!=-1)
 			{
 				count++;
 				System.out.println(count);
 				bufOut.write(byteArray,0,numByteRead);
 				bufOut.flush();
-			}
-			System.out.println("out of loop");
-			//numByteRead = in.read(byteArray);
-			//bufOut.write(byteArray);
+			}*/
+			//System.out.println("out of loop");
+			numByteRead = in.read(byteArray);
+			bufOut.write(byteArray);
 			bufOut.close();
 			in.close();
 			
