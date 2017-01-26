@@ -54,6 +54,7 @@ public class LogHandler {
 				String newline = System.getProperty("line.separator");
 				writer.write(newline);
 				isWriteSuccess = true;
+				writer.flush();
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
