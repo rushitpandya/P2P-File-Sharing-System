@@ -3,6 +3,7 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,8 +54,8 @@ class PeerServer extends Thread {
 	public void printLog(String msg)
 	{
 		peerserverlog = new LogHandler("peer");
-		peerserverlog.write(msg);
-		peerserverlog.close();
+		peerserverlog.writeLog(msg);
+		peerserverlog.closeLogFile();
 	}
 	
 	Socket socket;
@@ -68,7 +69,7 @@ class PeerServer extends Thread {
 	
 	@Override
 	public void interrupt() {
-		peerserverlog.close();
+		peerserverlog.closeLogFile();
 		super.interrupt();
 	}
 
@@ -95,16 +96,18 @@ class PeerServer extends Thread {
 					String fileName=downloadFileInfo.getFileName();
 					String fileLocation=downloadFileInfo.getFileLocation();
 					printLog("Sending file "+fileName+" requested by "+Ip);
+					
 					File file=new File(fileLocation+File.separator+fileName);
 					byte[] filebytesArray=new byte[(int)file.length()];
+					
 					BufferedInputStream buf=new BufferedInputStream(new FileInputStream(file));
 					buf.read(filebytesArray,0,filebytesArray.length);
 					out = socket.getOutputStream();
 					out.write(filebytesArray, 0, filebytesArray.length);
 					out.flush();
 					printLog("File sent to the peer");
-					//buf.close();
-					//out.close();
+					buf.close();
+					out.close();
 					
 				//	System.out.println("finish sending");
 				}
@@ -120,6 +123,9 @@ class PeerServer extends Thread {
 					peerServerOutput.writeObject(comm);
 				}
 			
+		}
+		catch(FileNotFoundException e){
+			System.out.println("Either File Deleted and Not Found on Specified Path.");
 		}
 		catch(Exception e)
 		{
@@ -519,9 +525,10 @@ class PeerClient extends Thread {
 			in=clientsocket1.getInputStream();
 			bufOut=new BufferedOutputStream(new FileOutputStream(FileHandler.downloadLocation+downloadFileInfo.getFileName()));
 			int numByteRead;
-			in.read(byteArray);
+			in.read(byteArray,0,64000);
 			System.out.println("\nFile Name:"+downloadFileInfo.getFileName());
 			System.out.println("Host Ip & Peer_ID:"+downloadPeerInfo.getIp()+" & "+downloadPeerInfo.getPeerId());
+			System.out.println("File Content Only print upto 64KB...");
 			System.out.println("\n***********File Content**************\n");
 			System.out.println("-----------------------------------------");
 			System.out.write(byteArray);
@@ -537,7 +544,7 @@ class PeerClient extends Thread {
 		}
 
 	}
-	private void peerServerConnection(DownloadInfo downloadObject)
+	public void peerServerConnection(DownloadInfo downloadObject)
 	{
 		PeerInfo downloadPeerInfo=downloadObject.getPeerInfo();
 		FileInfo downloadFileInfo=downloadObject.getFileInfo();
@@ -552,7 +559,7 @@ class PeerClient extends Thread {
 			ObjectInputStream serverinput1 = new ObjectInputStream(clientsocket1.getInputStream());
 			Communicator res = new Communicator();
 			
-			System.out.println("Requesting a File............");
+			//System.out.println("Requesting a File............");
 			res.setCommunicatorType("DownloadRequest");
 			res.setCommunicatorInfo(downloadObject);
 			serveroutput1.writeObject(res);
@@ -561,7 +568,7 @@ class PeerClient extends Thread {
 			{
 				res=(Communicator)serverinput1.readObject();
 			}*/	
-			System.out.println("Downloading a File...........");
+			//System.out.println("Downloading a File...........");
 			File file=new File(FileHandler.downloadLocation);
 			if(!file.exists())
 			{
@@ -572,16 +579,18 @@ class PeerClient extends Thread {
 			bufOut=new BufferedOutputStream(new FileOutputStream(FileHandler.downloadLocation+downloadFileInfo.getFileName()));
 			int numByteRead=0;
 			int count=0;
-			/*while((numByteRead = in.read(byteArray))!=-1)
+			while((numByteRead = in.read(byteArray))> 0)
 			{
 				count++;
-				System.out.println(count);
+				//System.out.println(count+"----"+numByteRead);
 				bufOut.write(byteArray,0,numByteRead);
 				bufOut.flush();
-			}*/
+				if(numByteRead <= 0)
+					break;
+			}
 			//System.out.println("out of loop");
-			numByteRead = in.read(byteArray);
-			bufOut.write(byteArray);
+			/*numByteRead = in.read(byteArray);
+			bufOut.write(byteArray);*/
 			bufOut.close();
 			in.close();
 			

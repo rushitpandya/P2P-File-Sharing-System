@@ -84,6 +84,7 @@ public class IndexingServer {
 		ObjectOutputStream serveroutput=null;
 		ObjectInputStream serverinput=null;
 		LogHandler log;
+		Communicator res;
 		public IndexServer(Socket clientSocket) throws IOException
 		{	
 			this.clientSocket=clientSocket;
@@ -100,8 +101,8 @@ public class IndexingServer {
 		public void printLog(String msg)
 		{
 			log=new LogHandler("server");
-			log.write(msg);
-			log.close();
+			log.writeLog(msg);
+			log.closeLogFile();
 		}
 		
 		
@@ -112,7 +113,7 @@ public class IndexingServer {
 				serveroutput = new ObjectOutputStream(clientSocket.getOutputStream());
 				serveroutput.flush();
 				serverinput=new ObjectInputStream(clientSocket.getInputStream());
-				Communicator res=new Communicator();
+				res=new Communicator();
 				
 				res.setCommunicatorInfo("Welcome to the P2P File Sharing System!! Please choose from below options of your choice");
 				serveroutput.writeObject(res);
@@ -125,8 +126,9 @@ public class IndexingServer {
 					if(!choice.equals("UNREGISTER") && !choice.equals("CLOSE"))
 					{	
 						serveroutput.writeObject(res);
+						serveroutput.flush();
 					}
-					System.out.println("in while loop:-"+res.getCommunicatorType());
+					//System.out.println("in while loop:-"+res.getCommunicatorType());
 					switch(choice){
 						case "REGISTERPEER":
 							peerConnection();
@@ -168,11 +170,11 @@ public class IndexingServer {
 					Communicator res=new Communicator();
 					printLog("Peer with IP: "+ipAddress+" connected.");
 					res=(Communicator)serverinput.readObject();
-					System.out.println("Info :"+res.getCommunicatorType());
+					//System.out.println("Info :"+res.getCommunicatorType());
 					if(res.getCommunicatorType().equals("Peercheck"))
 					{
 						dirCheck=res.getCommunicatorInfo().toString();
-						System.out.println(dirCheck);
+						//System.out.println(dirCheck);
 						for (int pi : peerList.keySet()) {
 							PeerInfo peerInfo=peerList.get(pi);
 							if(peerInfo.getIp().equals(ipAddress) && peerInfo.getDirectory().equals(dirCheck))
@@ -192,7 +194,7 @@ public class IndexingServer {
 						peer.setDirectory(dirCheck);
 						peerList.put(peerId, peer);
 						serveroutput.writeObject(res);
-						System.out.println("New Peer If");
+						//System.out.println("New Peer If");
 					}
 					else{
 						
@@ -200,7 +202,7 @@ public class IndexingServer {
 					}
 					
 					res=(Communicator)serverinput.readObject();
-					System.out.println(res.getCommunicatorType());
+					//System.out.println(res.getCommunicatorType());
 					switch(res.getCommunicatorType().toString())
 					{
 						case "Register":
@@ -233,7 +235,7 @@ public class IndexingServer {
 			//String peerInfo=peerId+"#"+clientSocket.getInetAddress().getHostAddress()+"#"+clientSocket.getPort();
 			fileList.put(peerId, fileInfo);
 			System.out.println("All the files are registered for Peer #"+peerId);
-			System.out.println("-------Peer List-----");
+			/*System.out.println("-------Peer List-----");
 			for (int pi : peerList.keySet()) {
 				PeerInfo peerInfo=peerList.get(pi);
 				System.out.println("PeerId #"+peerInfo.getPeerId()+" IP: "+peerInfo.getIp()+" Directory: "+peerInfo.getDirectory());
@@ -248,7 +250,7 @@ public class IndexingServer {
 					System.out.println("File Name : "+fInfo.getFileName()+" File Location: "+fInfo.getFileLocation());
 			
 				} 
-			}
+			}*/
 			res.setCommunicatorType("registrationSuccessfull");
 			res.setCommunicatorInfo("Peer registered with given files successfully...!!!");
 			printLog("Files registered succesfully.");
@@ -264,7 +266,7 @@ public class IndexingServer {
 		
 		private void peerFileLookup()
 		{
-			Communicator res;
+			//Communicator res=new Communicator();
 			String lookupFileName=null;
 			ArrayList<PeerInfo> alf=new ArrayList<PeerInfo>();
 			HashMap<PeerInfo, ArrayList<FileInfo>> lookMap=new HashMap<PeerInfo,ArrayList<FileInfo>>();
@@ -295,7 +297,7 @@ public class IndexingServer {
 				}
 			}
 			
-			System.out.println("------------------Lookup HashMap--------------------------");
+			/*System.out.println("------------------Lookup HashMap--------------------------");
 			for (PeerInfo peerinfo : lookMap.keySet()) {
 				ArrayList<FileInfo> fi=lookMap.get(peerinfo);
 				System.out.println("PeerId: #"+peerinfo.getPeerId()+" with IP "+peerinfo.getIp());
@@ -303,16 +305,22 @@ public class IndexingServer {
 				{
 					System.out.println("File Name : "+fInfo.getFileName()+" File Location: "+fInfo.getFileLocation());
 				} 
-			}
+			}*/
 			
 			if(lookMap.isEmpty())
 			{
 				printLog("File: "+lookupFileName+" Not Found.");
 			}
+			//System.out.println("before resp----");
+			serveroutput.flush();
 			res.setCommunicatorType("LookupMap");
+			
 			res.setCommunicatorInfo(lookMap);
+			//System.out.println("After Resp-----write");
 			serveroutput.writeObject(res);
-			} catch (Exception e) {
+			serveroutput.flush();
+			//System.out.println("After Resp-----");
+		} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
@@ -352,7 +360,7 @@ public class IndexingServer {
 				}
 			}
 			
-			System.out.println("------------------Lookup HashMap--------------------------");
+			/*System.out.println("------------------Lookup HashMap--------------------------");
 			for (PeerInfo peerinfo : lookMap.keySet()) {
 				ArrayList<FileInfo> fi=lookMap.get(peerinfo);
 				System.out.println("PeerId: #"+peerinfo.getPeerId()+" with IP "+peerinfo.getIp());
@@ -360,7 +368,7 @@ public class IndexingServer {
 				{
 					System.out.println("File Name : "+fInfo.getFileName()+" File Location: "+fInfo.getFileLocation());
 				} 
-			}
+			}*/
 			res.setCommunicatorType("LookupPrintMap");
 			res.setCommunicatorInfo(lookMap);
 			if(lookMap.isEmpty())
